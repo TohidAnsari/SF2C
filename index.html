@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Shadow Fight 2 - Web Edition</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div id="app">
+  <!-- TOP RESOURCE & PROFILE BAR (Iconic SF2 Header) -->
+  <header class="top-nav">
+    <!-- Left: Player Profile & Dan Level -->
+    <div class="profile-header-group">
+      <div class="profile-avatar-badge">
+        <span class="avatar-kanji">暗</span>
+        <span id="profile-lvl-num" class="avatar-lvl">1</span>
+      </div>
+      <div class="profile-text-group">
+        <div class="profile-name-row">
+          <span class="player-name">SHADOW</span>
+          <span id="profile-dan-title" class="player-dan">NOVICE</span>
+        </div>
+        <div class="exp-bar-container">
+          <div id="profile-exp-fill" class="exp-bar-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Energy, Gems, Gold & Settings -->
+    <div class="nav-controls">
+      <!-- Energy Lightning Bolt -->
+      <div class="resource-pill energy-pill" title="Energy used to enter tournament battles">
+        <span class="resource-icon">⚡</span>
+        <span id="currency-energy" class="resource-val">5/5</span>
+      </div>
+
+      <!-- Rubies / Gems -->
+      <div class="resource-pill gems-pill">
+        <span class="resource-icon">💎</span>
+        <span id="currency-gems" class="resource-val">15</span>
+      </div>
+
+      <!-- Gold Coins -->
+      <div class="resource-pill coins-pill">
+        <span class="resource-icon">💰</span>
+        <span id="currency-coins" class="resource-val">200</span>
+      </div>
+
+      <!-- Sound Toggle -->
+      <button class="sf-nav-btn sf-icon-btn" onclick="Sound.toggleMute()" title="Toggle Audio">🔊</button>
+      <!-- Move List -->
+      <button class="sf-nav-btn" onclick="Game.showMoveListModal()">📜 MOVES</button>
+      <!-- In-Battle Pause -->
+      <button class="sf-nav-btn sf-pause-btn" onclick="Game.togglePause()" title="Pause">⏸️</button>
+    </div>
+  </header>
+
+  <!-- 2.5D HYBRID WEBGL SCENERY CANVAS (Renders 3D Environments Behind Action) -->
+  <canvas id="bg3dCanvas" width="1000" height="588"></canvas>
+
+  <!-- SCREEN 1: AUTHENTIC SHADOW FIGHT 2 DOJO LOBBY -->
+  <div id="screen-main-menu" class="game-screen active">
+    <!-- Interactive Dojo Background Canvas -->
+    <canvas id="lobbyCanvas" width="1000" height="588"></canvas>
+
+    <!-- Dojo Lobby HUD & Circular Navigation Dock -->
+    <div class="lobby-ui-overlay">
+      <!-- Left Vertical Quick Dock (Authentic SF2 Badges) -->
+      <div class="lobby-side-dock">
+        <button class="dock-btn dock-btn-story" onclick="Game.showScreen('screen-tournament')">
+          <div class="dock-icon-ring story-icon-ring">⛩️</div>
+          <span class="dock-label story-dock-label">STORY MODE</span>
+        </button>
+        <button class="dock-btn" onclick="Game.showScreen('screen-armory')">
+          <div class="dock-icon-ring">🛡️</div>
+          <span class="dock-label">EQUIPMENT</span>
+        </button>
+        <button class="dock-btn" onclick="Game.showPerksModal()">
+          <div class="dock-icon-ring">✨</div>
+          <span class="dock-label">PERKS</span>
+        </button>
+        <button class="dock-btn" onclick="Game.showQuestsModal()">
+          <div class="dock-icon-ring">📜</div>
+          <span class="dock-label">QUESTS</span>
+        </button>
+        <button class="dock-btn" onclick="Game.showMoveListModal()">
+          <div class="dock-icon-ring">🥋</div>
+          <span class="dock-label">TECHNIQUES</span>
+        </button>
+      </div>
+
+      <!-- Center Subtle Training Hint -->
+      <div class="lobby-center-hint">
+        <span>⚔️ DOJO TRAINING: Tap or use WASD + J/K to strike the hanging sandbag</span>
+      </div>
+
+      <!-- Bottom Right: Giant Iconic Red "FIGHT" Button & Secondary Modes -->
+      <div class="lobby-battle-cluster">
+        <div class="secondary-modes-row">
+          <button class="sf-btn sf-btn-sub" onclick="Game.startTrainingDojo()">
+            🥋 SPARRING BOT
+          </button>
+          <button class="sf-btn sf-btn-sub" onclick="Game.startLocalPvP()">
+            👥 2-PLAYER VERSUS
+          </button>
+        </div>
+
+        <!-- The Giant Glowing Red SF2 FIGHT Button (Story Mode & Tournament Entry) -->
+        <button class="lobby-fight-btn" onclick="Game.showScreen('screen-tournament')">
+          <div class="fight-btn-ring">
+            <span class="fight-btn-swords">⚔️</span>
+            <span class="fight-btn-text">FIGHT</span>
+            <span class="fight-btn-subtext">STORY MODE</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: TOURNAMENT LADDER (Act 1: Hero Reborn) -->
+  <div id="screen-tournament" class="game-screen">
+    <div class="screen-header-bar">
+      <div>
+        <div class="screen-title">ACT I: HERO REBORN</div>
+        <div class="screen-subtitle">DEFEAT THE DEMON DISCIPLES TO REACH LYNX</div>
+      </div>
+      <button class="sf-btn" style="padding: 6px 14px;" onclick="Game.showScreen('screen-main-menu')">◀ MAIN DOJO</button>
+    </div>
+    <div id="tournament-list" class="tournament-grid">
+      <!-- Injected via Tournament.renderTournamentMap() -->
+    </div>
+  </div>
+
+  <!-- SCREEN 3: DOJO ARMORY & SHOP -->
+  <div id="screen-armory" class="game-screen">
+    <div class="screen-header-bar">
+      <div>
+        <div class="screen-title">NINJA ARMORY & EQUIPMENT</div>
+        <div class="screen-subtitle">UPGRADE BLADES, ARMOR AND HELMETS</div>
+      </div>
+      <button class="sf-btn" style="padding: 6px 14px;" onclick="Game.showScreen('screen-main-menu')">◀ MAIN DOJO</button>
+    </div>
+    <div id="armory-cards-container">
+      <!-- Injected via Armory.updateUI() -->
+    </div>
+  </div>
+
+  <!-- SCREEN 4: COMBAT ARENA -->
+  <div id="screen-arena" class="game-screen">
+    <!-- Battle HUD -->
+    <div class="arena-hud">
+      <!-- P1 Health Box -->
+      <div class="hud-fighter hud-fighter-left">
+        <div class="fighter-portrait portrait-p1">
+          <div class="portrait-glow"></div>
+          <div class="portrait-eye eye-p1"></div>
+        </div>
+        <div class="hud-fighter-details">
+          <div class="hud-info-row">
+            <span id="hud-p1-name" class="hud-name hud-p1-name">SHADOW</span>
+            <div class="win-indicators">
+              <div id="p1-win-1" class="win-dot"></div>
+              <div id="p1-win-2" class="win-dot"></div>
+            </div>
+          </div>
+          <div class="hud-bar-container">
+            <div id="hud-p1-ghost" class="hud-bar-ghost"></div>
+            <div id="hud-p1-fill" class="hud-bar-fill"></div>
+          </div>
+          <div class="hud-sub-row">
+            <div id="hud-p1-weapon" class="hud-weapon-badge">Bare Fists</div>
+            <div class="hud-magic-orb" id="hud-p1-magic-orb" title="Magic Jutsu Meter (Key U)">
+              <div class="hud-magic-fill" id="hud-p1-magic-fill"></div>
+              <div class="hud-magic-icon" id="hud-p1-magic-icon">🔥</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center 99s Round Timer Octagon -->
+      <div class="hud-center-timer">
+        <div class="timer-octagon">
+          <span id="round-timer-digits" class="timer-digits">99</span>
+        </div>
+        <span class="timer-vs-text">VS</span>
+      </div>
+
+      <!-- P2 Health Box -->
+      <div class="hud-fighter hud-fighter-right">
+        <div class="hud-fighter-details">
+          <div class="hud-info-row">
+            <div class="win-indicators">
+              <div id="p2-win-2" class="win-dot"></div>
+              <div id="p2-win-1" class="win-dot"></div>
+            </div>
+            <span id="hud-p2-name" class="hud-name hud-p2-name">LYNX</span>
+          </div>
+          <div class="hud-bar-container">
+            <div id="hud-p2-ghost" class="hud-bar-ghost"></div>
+            <div id="hud-p2-fill" class="hud-bar-fill"></div>
+          </div>
+          <div class="hud-sub-row hud-sub-row-right">
+            <div class="hud-magic-orb" id="hud-p2-magic-orb" title="Opponent Magic Meter">
+              <div class="hud-magic-fill" id="hud-p2-magic-fill"></div>
+              <div class="hud-magic-icon" id="hud-p2-magic-icon">🌑</div>
+            </div>
+            <div id="hud-p2-weapon" class="hud-weapon-badge hud-weapon-right">Claws</div>
+          </div>
+        </div>
+        <div class="fighter-portrait portrait-p2">
+          <div class="portrait-glow portrait-glow-red"></div>
+          <div class="portrait-eye eye-p2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arena Canvas Viewport -->
+    <canvas id="gameCanvas" width="1000" height="588"></canvas>
+
+    <!-- On-Screen Virtual Controls -->
+    <div id="touch-controls">
+      <!-- 8-Directional Compass Virtual Stick -->
+      <div class="joystick-wrapper">
+        <div id="touch-stick-zone" class="touch-stick-container">
+          <div class="stick-compass-ring">
+            <span id="dir-u" class="stick-notch notch-u">▲</span>
+            <span id="dir-ur" class="stick-notch notch-ur">▲</span>
+            <span id="dir-r" class="stick-notch notch-r">▶</span>
+            <span id="dir-dr" class="stick-notch notch-dr">▼</span>
+            <span id="dir-d" class="stick-notch notch-d">▼</span>
+            <span id="dir-dl" class="stick-notch notch-dl">▼</span>
+            <span id="dir-l" class="stick-notch notch-l">◀</span>
+            <span id="dir-ul" class="stick-notch notch-ul">▲</span>
+          </div>
+          <div id="touch-stick-nub" class="touch-stick-nub"></div>
+        </div>
+      </div>
+
+      <!-- Tactical Action Buttons -->
+      <div class="touch-actions-cluster">
+        <div class="actions-row-upper">
+          <div id="btn-roll" class="touch-btn btn-util">
+            <span class="btn-label">ROLL</span>
+            <span class="btn-sub">[SPACE]</span>
+          </div>
+          <div id="btn-magic" class="touch-btn btn-util btn-magic" title="Cast Magic Jutsu (Key U)">
+            <span class="btn-label">JUTSU</span>
+            <span class="btn-sub">[U]</span>
+          </div>
+          <div id="btn-guard" class="touch-btn btn-util">
+            <span class="btn-label">GUARD</span>
+            <span class="btn-sub">[SHIFT]</span>
+          </div>
+        </div>
+        <div class="actions-row-primary">
+          <div id="btn-punch" class="touch-btn btn-combat btn-punch">
+            <span class="btn-label">PUNCH</span>
+            <span class="btn-sub">[J]</span>
+          </div>
+          <div id="btn-kick" class="touch-btn btn-combat btn-kick">
+            <span class="btn-label">KICK</span>
+            <span class="btn-sub">[K]</span>
+          </div>
+          <div id="btn-ranged" class="touch-btn btn-combat btn-star">
+            <span class="btn-label">STAR</span>
+            <span class="btn-sub">[L]</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PERKS & TALENT TREE -->
+  <div id="perks-modal" class="modal-overlay">
+    <div class="modal-content perks-modal-content">
+      <div class="modal-header-row">
+        <div class="modal-title" style="font-size: 24px; margin: 0;">✨ MARTIAL PERKS & TALENTS</div>
+        <button class="sf-btn sf-close-btn" onclick="Game.closePerksModal()">✕</button>
+      </div>
+      <div class="perks-grid">
+        <div class="perk-card unlocked">
+          <div class="perk-icon">🐍</div>
+          <div class="perk-info">
+            <div class="perk-name">Cobra Reflexes</div>
+            <div class="perk-desc">+15% Attack Speed on Neutral Jabs & Snap Kicks</div>
+          </div>
+          <span class="perk-tag">ACTIVE</span>
+        </div>
+        <div class="perk-card unlocked">
+          <div class="perk-icon">⚡</div>
+          <div class="perk-info">
+            <div class="perk-name">Desperate Power</div>
+            <div class="perk-desc">+25% Critical Damage when HP drops below 30%</div>
+          </div>
+          <span class="perk-tag">ACTIVE</span>
+        </div>
+        <div class="perk-card locked">
+          <div class="perk-icon">🛡️</div>
+          <div class="perk-info">
+            <div class="perk-name">Iron Guard</div>
+            <div class="perk-desc">Blocks deflect 100% of damage with zero chip damage</div>
+          </div>
+          <span class="perk-tag">UNLOCK AT LVL 3</span>
+        </div>
+        <div class="perk-card locked">
+          <div class="perk-icon">🗡️</div>
+          <div class="perk-info">
+            <div class="perk-name">Bleeding Cut</div>
+            <div class="perk-desc">Critical Katana/Knife slashes inflict lingering bleed</div>
+          </div>
+          <span class="perk-tag">UNLOCK AT LVL 4</span>
+        </div>
+      </div>
+      <button class="sf-btn sf-btn-primary" style="margin-top: 14px; width: 100%;" onclick="Game.closePerksModal()">CLOSE</button>
+    </div>
+  </div>
+
+  <!-- MODAL: DAILY QUESTS & REWARDS -->
+  <div id="quests-modal" class="modal-overlay">
+    <div class="modal-content quests-modal-content">
+      <div class="modal-header-row">
+        <div class="modal-title" style="font-size: 24px; margin: 0;">📜 DOJO DAILY QUESTS</div>
+        <button class="sf-btn sf-close-btn" onclick="Game.closeQuestsModal()">✕</button>
+      </div>
+      <div class="quests-list">
+        <div class="quest-card">
+          <div class="quest-icon">🎯</div>
+          <div class="quest-info">
+            <div class="quest-name">Precision Striker</div>
+            <div class="quest-desc">Land 5 Head Hits in any Tournament battle</div>
+          </div>
+          <div class="quest-reward">+100 💰</div>
+        </div>
+        <div class="quest-card">
+          <div class="quest-icon">🥋</div>
+          <div class="quest-info">
+            <div class="quest-name">Untouchable Shadow</div>
+            <div class="quest-desc">Win a round with a "PERFECT" (no damage taken)</div>
+          </div>
+          <div class="quest-reward">+200 💰 | +2 💎</div>
+        </div>
+        <div class="quest-card">
+          <div class="quest-icon">🌀</div>
+          <div class="quest-info">
+            <div class="quest-name">Judo Master</div>
+            <div class="quest-desc">Perform 3 Close-Range Shoulder Slam Throws</div>
+          </div>
+          <div class="quest-reward">+150 💰</div>
+        </div>
+      </div>
+      <button class="sf-btn sf-btn-primary" style="margin-top: 14px; width: 100%;" onclick="Game.closeQuestsModal()">CLOSE</button>
+    </div>
+  </div>
+
+  <!-- MODAL: IN-GAME PAUSE -->
+  <div id="pause-modal" class="modal-overlay">
+    <div class="modal-content pause-content">
+      <div class="modal-title">BATTLE PAUSED</div>
+      <div class="modal-button-stack">
+        <button class="sf-btn sf-btn-primary" onclick="Game.resumeFight()">▶ RESUME BATTLE</button>
+        <button class="sf-btn" onclick="Game.showMoveListModal()">📜 MOVE LIST & COMBOS</button>
+        <button class="sf-btn" onclick="Sound.toggleMute()">🔊 TOGGLE SOUND</button>
+        <button class="sf-btn" onclick="Game.restartMatch()">🔄 RESTART DUEL</button>
+        <button class="sf-btn sf-btn-sub" onclick="Game.quitToMainMenu()">🚪 RETURN TO DOJO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: MOVE LIST SCROLL -->
+  <div id="moves-modal" class="modal-overlay">
+    <div class="modal-content moves-content">
+      <div class="modal-header-row">
+        <div class="modal-title" style="font-size: 26px; margin: 0;">📜 MARTIAL ARTS SCROLL</div>
+        <button class="sf-btn sf-close-btn" onclick="Game.closeMoveListModal()">✕</button>
+      </div>
+      <div class="moves-scroll-container">
+        <!-- Punch Techniques -->
+        <div class="move-category-title">👊 PUNCH TECHNIQUES (J Key)</div>
+        <table class="moves-table">
+          <tr><th>Input</th><th>Technique</th><th>Zone</th><th>Effect</th></tr>
+          <tr><td><span class="key-tag">J</span></td><td>Quick Jab Combo</td><td>Torso</td><td>Fast 2-hit punch</td></tr>
+          <tr><td><span class="key-tag">D + J</span></td><td>Double Strike</td><td>Torso</td><td>Lunging thrust attack</td></tr>
+          <tr><td><span class="key-tag">A + J</span></td><td>Spinning Backfist</td><td>Head</td><td>High rotational damage</td></tr>
+          <tr><td><span class="key-tag">W + J</span></td><td>Dragon Uppercut</td><td>Head</td><td>Anti-air launcher</td></tr>
+          <tr><td><span class="key-tag">S + J</span></td><td>Low Strike</td><td>Legs</td><td>Quick knee/shin strike</td></tr>
+          <tr><td><span class="key-tag">D + J (Close)</span></td><td>Shoulder Slam</td><td>Torso</td><td>Unblockable close throw</td></tr>
+        </table>
+
+        <!-- Kick Techniques -->
+        <div class="move-category-title" style="margin-top: 14px;">🦵 KICK TECHNIQUES (K Key)</div>
+        <table class="moves-table">
+          <tr><th>Input</th><th>Technique</th><th>Zone</th><th>Effect</th></tr>
+          <tr><td><span class="key-tag">K</span></td><td>Front Snap Kick</td><td>Torso</td><td>Quick spacing check</td></tr>
+          <tr><td><span class="key-tag">D + K</span></td><td>Side Step Thrust</td><td>Torso</td><td>Heavy forward lunge</td></tr>
+          <tr><td><span class="key-tag">A + K</span></td><td>Spinning Heel Kick</td><td>Head</td><td>High crit head kick</td></tr>
+          <tr><td><span class="key-tag">W + K</span></td><td>Axe Kick</td><td>Head</td><td>Downward overhead drop</td></tr>
+          <tr><td><span class="key-tag">S + K</span></td><td>Sweeping Low Kick</td><td>Legs</td><td>Trips & knocks opponent down</td></tr>
+        </table>
+
+        <!-- Defense & Dodges -->
+        <div class="move-category-title" style="margin-top: 14px;">🛡️ DEFENSE & MOBILITY</div>
+        <table class="moves-table">
+          <tr><th>Input</th><th>Technique</th><th>Effect</th></tr>
+          <tr><td><span class="key-tag">Hold Back</span> or <span class="key-tag">Shift</span></td><td>Guard Stance</td><td>Parries attacks, minimizes chip damage</td></tr>
+          <tr><td><span class="key-tag">Space</span> or <span class="key-tag">D, D</span></td><td>Forward Roll</td><td>Invulnerable roll under high strikes</td></tr>
+          <tr><td><span class="key-tag">A, A</span></td><td>Backflip</td><td>Acrobatic retreat from close pressure</td></tr>
+          <tr><td><span class="key-tag">L</span></td><td>Throwing Shuriken</td><td>Long-range projectile star</td></tr>
+        </table>
+      </div>
+      <button class="sf-btn sf-btn-primary" style="margin-top: 15px; width: 100%;" onclick="Game.closeMoveListModal()">CLOSE SCROLL</button>
+    </div>
+  </div>
+
+  <!-- 3D ARMORY EQUIPMENT INSPECTOR MODAL -->
+  <div id="armory-3d-modal" class="modal-overlay">
+    <div class="modal-content armory-3d-modal-dialog">
+      <div class="armory-3d-header">
+        <div class="armory-3d-title-group">
+          <div class="armory-3d-badge">3D INSPECTOR</div>
+          <h2 id="inspect-item-title" class="armory-3d-title">NINJA KATANA</h2>
+          <span id="inspect-item-type" class="armory-3d-subtitle">WEAPON • LEVEL 1</span>
+        </div>
+        <button class="sf-modal-close" onclick="ThreeScene.closeInspector()">✕</button>
+      </div>
+
+      <div class="armory-3d-body">
+        <!-- 3D WebGL Model Viewport -->
+        <div class="armory-3d-viewport-container">
+          <canvas id="armoryInspectCanvas" width="420" height="420"></canvas>
+          <div class="viewport-controls-hint">
+            <span>🖱️ Drag to Rotate 360° • 📜 Scroll to Zoom</span>
+          </div>
+          <div class="viewport-lighting-badge">✨ Specular Blade Gleam</div>
+        </div>
+
+        <!-- Equipment Specs & Info -->
+        <div class="armory-3d-details">
+          <div class="inspect-stat-card">
+            <div class="stat-row">
+              <span class="stat-label">⚔️ DAMAGE</span>
+              <span id="inspect-stat-dmg" class="stat-value val-dmg">+22</span>
+            </div>
+            <div class="stat-bar-bg"><div class="stat-bar-fill fill-dmg" style="width: 65%;"></div></div>
+          </div>
+
+          <div class="inspect-stat-card">
+            <div class="stat-row">
+              <span class="stat-label">🛡️ DEFENSE</span>
+              <span id="inspect-stat-def" class="stat-value val-def">--</span>
+            </div>
+            <div class="stat-bar-bg"><div class="stat-bar-fill fill-def" style="width: 40%;"></div></div>
+          </div>
+
+          <div class="inspect-stat-card">
+            <div class="stat-row">
+              <span class="stat-label">⚖️ WEAPON MASS</span>
+              <span id="inspect-stat-weight" class="stat-value val-weight">1.4 KG</span>
+            </div>
+            <div class="stat-bar-bg"><div class="stat-bar-fill fill-weight" style="width: 55%;"></div></div>
+          </div>
+
+          <div class="inspect-info-box">
+            <div class="info-title">🥋 FEUDAL CRAFTSMANSHIP</div>
+            <p class="info-desc">Forged from folded Tamahagane steel with authentic Hamon temper line and gilded brass fittings. Fully rendered with physics-based specular sheen.</p>
+          </div>
+
+          <div class="inspect-action-group">
+            <button id="inspect-equip-btn" class="sf-btn sf-btn-primary" style="flex: 1;">EQUIP THIS ITEM</button>
+            <button class="sf-btn" onclick="ThreeScene.closeInspector()">CLOSE</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: MATCH END (Victory / Defeat) -->
+  <div id="match-end-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div id="modal-title" class="modal-title">VICTORY</div>
+      <div id="modal-subtext" class="modal-subtext">+150 GOLD EARNED</div>
+      <button class="sf-btn sf-btn-primary" style="width: 100%;" onclick="Game.closeMatchModal()">
+        CONTINUE
+      </button>
+    </div>
+  </div>
+
+  <!-- VISUAL NOVEL CINEMATIC OVERLAY & STORY DIALOGUE -->
+  <div id="cinematic-overlay" class="cinematic-overlay">
+    <!-- 2.35:1 Anamorphic Cinema Letterbox Bars -->
+    <div class="cinematic-bar-top"></div>
+    <div class="cinematic-bar-bottom"></div>
+
+    <!-- Interactive Dialogue Stage -->
+    <div class="cinematic-stage">
+      <!-- Speaker Portraits Row -->
+      <div class="cinematic-portraits-row">
+        <!-- Left Speaker Card (Shadow / Sensei) -->
+        <div id="dialogue-portrait-left" class="cinematic-portrait-card portrait-left">
+          <div class="portrait-avatar" id="dialogue-speaker-left">
+            <div class="portrait-silhouette">
+              <div class="portrait-eye eye-cyan"></div>
+            </div>
+          </div>
+          <span class="portrait-card-name" id="portrait-left-name">SHADOW</span>
+        </div>
+
+        <!-- Right Speaker Card (Demon Lynx / Disciples) -->
+        <div id="dialogue-portrait-right" class="cinematic-portrait-card portrait-right">
+          <div class="portrait-avatar" id="dialogue-speaker-right">
+            <div class="portrait-silhouette">
+              <div class="portrait-eye eye-red"></div>
+            </div>
+          </div>
+          <span class="portrait-card-name" id="portrait-right-name">LYNX</span>
+        </div>
+      </div>
+
+      <!-- Japanese Lacquer Dialogue Box -->
+      <div id="cinematic-dialogue-box" class="cinematic-dialogue-box">
+        <div class="dialogue-header">
+          <div id="dialogue-speaker-badge" class="dialogue-speaker-badge">師父 SENSEI</div>
+          <button id="cinematic-skip-btn" class="cinematic-skip-btn" type="button">SKIP ⏭</button>
+        </div>
+        <div class="dialogue-body">
+          <span id="dialogue-text" class="dialogue-text"></span>
+          <span class="typewriter-cursor">|</span>
+        </div>
+        <div class="dialogue-footer">
+          <span class="cinematic-prompt">Tap or [SPACE] to Continue ▶</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SEAL OF THE LYNX REWARD (Act I Climax) -->
+  <div id="seal-reward-modal" class="modal-overlay seal-reward-modal">
+    <div class="modal-content seal-reward-content">
+      <div class="seal-rays-effect"></div>
+      <div class="seal-header">
+        <div class="seal-crest-badge">⛩️ ACT I CLIMAX</div>
+        <h2 class="seal-title">SEAL OF THE LYNX</h2>
+        <div class="seal-subtitle">DEMON CONQUERED • ACT I COMPLETE</div>
+      </div>
+      <div class="seal-canvas-wrapper">
+        <canvas id="sealInspectCanvas" width="260" height="260"></canvas>
+      </div>
+      <div class="seal-rewards-pill">
+        <span class="reward-item">💰 +1000 COINS</span>
+        <span class="reward-divider">•</span>
+        <span class="reward-item">💎 +20 GEMS</span>
+      </div>
+      <div class="seal-lore">
+        "The first seal is broken. The Gates of Shadows stir with ancient dread."
+      </div>
+      <button id="seal-claim-btn" class="sf-btn sf-btn-primary seal-claim-btn" onclick="if(window.Game && window.Game.claimSealReward){window.Game.claimSealReward();}else{document.getElementById('seal-reward-modal').classList.remove('active');}">
+        CLAIM & ADVANCE
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Controls Helper Footer -->
+<div class="footer-guide">
+  [P1] <span class="key-badge">W/A/S/D</span> Movement | 
+  <span class="key-badge">J</span> Punch | 
+  <span class="key-badge">K</span> Kick | 
+  <span class="key-badge">L</span> Star | 
+  <span class="key-badge">Space</span> Roll | 
+  <span class="key-badge">Shift</span> Guard | 
+  <span class="key-badge">Esc</span> Pause
+</div>
+
+<!-- Standalone 3D Engine Bundles -->
+<script src="lib/three.min.js"></script>
+<script src="lib/GLTFLoader.js"></script>
+<script src="js/three_scene.js"></script>
+
+<!-- Game Engine Scripts -->
+<script src="js/config.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/cinematics.js"></script>
+<script src="js/input.js"></script>
+<script src="js/skeleton.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/fighter.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/armory.js"></script>
+<script src="js/tournament.js"></script>
+<script src="js/dojo.js"></script>
+<script src="js/game.js"></script>
+
+</body>
+</html>

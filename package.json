@@ -1,0 +1,21 @@
+{
+  "name": "shadow-fight-2-web",
+  "version": "1.0.0",
+  "description": "Shadow Fight 2 Web Edition - Silhouette Martial Arts Combat Engine & Game",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8080",
+    "serve": "npx -y serve . -p 8080"
+  },
+  "keywords": [
+    "shadow-fight-2",
+    "fighting-game",
+    "canvas",
+    "web-audio",
+    "martial-arts",
+    "silhouette"
+  ],
+  "author": "Antigravity & Pair Programmer",
+  "license": "MIT"
+}
+

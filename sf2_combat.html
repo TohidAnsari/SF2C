@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow Fight 2 Web Combat Feature</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: #0d0c11;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        #header {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        #header h1 {
+            font-size: 22px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: #e67e22;
+            text-shadow: 0 0 12px rgba(230, 126, 34, 0.6);
+        }
+
+        #gameContainer {
+            position: relative;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(230, 126, 34, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 2px solid #332219;
+        }
+
+        canvas {
+            display: block;
+            background: #000;
+        }
+
+        #hud {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .health-box {
+            width: 340px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .health-name {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .player-name {
+            color: #f39c12;
+        }
+
+        .enemy-name {
+            color: #e74c3c;
+            text-align: right;
+        }
+
+        .bar-bg {
+            width: 100%;
+            height: 18px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #7f8c8d;
+            transform: skewX(-15deg);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.15s cubic-bezier(0.1, 0.9, 0.2, 1);
+        }
+
+        #p1-hp {
+            background: linear-gradient(90deg, #e67e22, #f1c40f);
+        }
+
+        #p2-hp {
+            background: linear-gradient(90deg, #c0392b, #e74c3c);
+            float: right;
+        }
+
+        #controls-guide {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #a0a0a0;
+            background: rgba(20, 20, 25, 0.7);
+            padding: 8px 18px;
+            border-radius: 20px;
+            border: 1px solid #333;
+        }
+
+        .key {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 2px 7px;
+            border-radius: 4px;
+            border-bottom: 2px solid #1a252f;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="header">
+        <h1>Shadow Silhouette Combat Engine</h1>
+    </div>
+
+    <div id="gameContainer">
+        <div id="hud">
+            <div class="health-box">
+                <span class="health-name player-name">SHADOW (P1)</span>
+                <div class="bar-bg">
+                    <div id="p1-hp" class="bar-fill"></div>
+                </div>
+            </div>
+            <div style="font-size: 20px; font-weight: 900; color: #d35400;">VS</div>
+            <div class="health-box">
+                <span class="health-name enemy-name">LYNX (AI)</span>
+                <div class="bar-bg">
+                    <div id="p2-hp" class="bar-fill"></div>
+                </div>
+            </div>
+        </div>
+        <canvas id="gameCanvas" width="900" height="500"></canvas>
+    </div>
+
+    <div id="controls-guide">
+        Movement: <span class="key">A</span> / <span class="key">D</span> (Left/Right), <span class="key">W</span>
+        (Jump), <span class="key">S</span> (Crouch) |
+        Attacks: <span class="key">J</span> (Punch), <span class="key">K</span> (Kick) |
+        Combos: <span class="key">W+J</span> Uppercut, <span class="key">D+K</span> Side Thrust, <span
+            class="key">S+K</span> Sweep
+    </div>
+
+    <script>
+        // --- PROCEDURAL WEB AUDIO SFX SYNTHESIZER ---
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new AudioCtx();
+            const now = audioCtx.currentTime;
+
+            if (type === 'whoosh') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.18);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.18);
+            } else if (type === 'hit') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.2);
+                gain.gain.setValueAtTime(0.7, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'crit') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(320, now);
+                osc.frequency.exponentialRampToValueAtTime(60, now + 0.28);
+                gain.gain.setValueAtTime(0.8, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.28);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.28);
+            }
+        }
+
+        // --- CANVAS & GAME LOOP SETUP ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const GROUND_Y = 410;
+
+        let screenShake = 0;
+        const particles = [];
+
+        // --- INPUT HANDLER ---
+        const keys = {};
+        window.addEventListener('keydown', e => {
+            keys[e.key.toLowerCase()] = true;
+            if (!audioCtx) audioCtx = new AudioCtx();
+        });
+        window.addEventListener('keyup', e => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        // --- COMBAT MOVE DATABASE ---
+        const MOVES = {
+            PUNCH_NEUTRAL: { name: 'Jab Combo', duration: 16, hitStart: 5, hitEnd: 10, reach: 55, heightOffset: -65, damage: 8, zone: 'torso' },
+            PUNCH_FORWARD: { name: 'Forward Thrust', duration: 22, hitStart: 7, hitEnd: 14, reach: 75, heightOffset: -60, damage: 12, zone: 'torso', step: 2.2 },
+            PUNCH_UP: { name: 'Uppercut', duration: 24, hitStart: 6, hitEnd: 13, reach: 45, heightOffset: -95, damage: 18, zone: 'head', step: 0.5 },
+            PUNCH_DOWN: { name: 'Low Strike', duration: 18, hitStart: 5, hitEnd: 11, reach: 55, heightOffset: -20, damage: 7, zone: 'legs', step: 0.8 },
+
+            KICK_NEUTRAL: { name: 'Snap Kick', duration: 20, hitStart: 6, hitEnd: 12, reach: 65, heightOffset: -50, damage: 10, zone: 'torso' },
+            KICK_FORWARD: { name: 'Side Thrust', duration: 26, hitStart: 9, hitEnd: 16, reach: 85, heightOffset: -55, damage: 16, zone: 'torso', step: 3.0 },
+            KICK_UP: { name: 'Axe Kick', duration: 28, hitStart: 10, hitEnd: 17, reach: 60, heightOffset: -100, damage: 22, zone: 'head', step: 1.0 },
+            KICK_DOWN: { name: 'Sweep Kick', duration: 22, hitStart: 7, hitEnd: 14, reach: 75, heightOffset: -10, damage: 11, zone: 'legs', step: 1.5 }
+        };
+
+        // --- FIGHTER ENTITY CLASS ---
+        class Fighter {
+            constructor(x, colorGlow, isAI = false) {
+                this.x = x;
+                this.y = GROUND_Y;
+                this.vx = 0;
+                this.vy = 0;
+                this.facing = isAI ? -1 : 1;
+                this.glow = colorGlow;
+                this.isAI = isAI;
+
+                this.hp = 100;
+                this.maxHp = 100;
+
+                // Combat State Machine: 'IDLE', 'ATTACKING', 'HITSTUN', 'BLOCK'
+                this.state = 'IDLE';
+                this.currentMove = null;
+                this.frameCounter = 0;
+                this.hasHitCurrentMove = false;
+
+                // AI timers
+                this.aiTimer = 0;
+                this.aiAction = 'IDLE';
+            }
+
+            update(opponent) {
+                // Face the opponent
+                if (this.state !== 'ATTACKING' && this.state !== 'HITSTUN') {
+                    this.facing = opponent.x > this.x ? 1 : -1;
+                }
+
+                // AI Logic
+                if (this.isAI) {
+                    this.updateAI(opponent);
+                } else {
+                    this.updatePlayerInput();
+                }
+
+                // Physics integration
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Gravity
+                if (this.y < GROUND_Y) {
+                    this.vy += 0.8;
+                } else {
+                    this.y = GROUND_Y;
+                    this.vy = 0;
+                }
+
+                // Boundary constraints
+                this.x = Math.max(50, Math.min(canvas.width - 50, this.x));
+
+                // Handle Attack State & Hitbox Activation
+                if (this.state === 'ATTACKING') {
+                    this.frameCounter++;
+                    const move = this.currentMove;
+
+                    if (move.step && this.frameCounter <= move.hitEnd) {
+                        this.x += move.step * this.facing;
+                    }
+
+                    // Active Hitbox Frames
+                    if (this.frameCounter >= move.hitStart && this.frameCounter <= move.hitEnd && !this.hasHitCurrentMove) {
+                        this.checkHit(opponent, move);
+                    }
+
+                    if (this.frameCounter >= move.duration) {
+                        this.state = 'IDLE';
+                        this.currentMove = null;
+                        this.frameCounter = 0;
+                    }
+                } else if (this.state === 'HITSTUN') {
+                    this.frameCounter++;
+                    this.vx *= 0.85;
+                    if (this.frameCounter > 15) {
+                        this.state = 'IDLE';
+                        this.frameCounter = 0;
+                    }
+                } else {
+                    this.vx *= 0.8;
+                }
+            }
+
+            triggerMove(moveKey) {
+                if (this.state !== 'IDLE') return;
+                this.currentMove = MOVES[moveKey];
+                this.state = 'ATTACKING';
+                this.frameCounter = 0;
+                this.hasHitCurrentMove = false;
+                playSound('whoosh');
+            }
+
+            updatePlayerInput() {
+                if (this.state !== 'IDLE') return;
+
+                const up = keys['w'] || keys['arrowup'];
+                const down = keys['s'] || keys['arrowdown'];
+                const left = keys['a'] || keys['arrowleft'];
+                const right = keys['d'] || keys['arrowright'];
+                const punch = keys['j'];
+                const kick = keys['k'];
+
+                const moveForward = (this.facing === 1 && right) || (this.facing === -1 && left);
+                const moveBack = (this.facing === 1 && left) || (this.facing === -1 && right);
+
+                // Movement
+                if (moveForward) this.vx = 3.2 * this.facing;
+                else if (moveBack) this.vx = -2.5 * this.facing;
+
+                if (up && this.y === GROUND_Y) {
+                    this.vy = -14;
+                }
+
+                // 8-Directional Attack Input Mapping
+                if (punch) {
+                    keys['j'] = false; // consume key
+                    if (up) this.triggerMove('PUNCH_UP');
+                    else if (down) this.triggerMove('PUNCH_DOWN');
+                    else if (moveForward) this.triggerMove('PUNCH_FORWARD');
+                    else this.triggerMove('PUNCH_NEUTRAL');
+                } else if (kick) {
+                    keys['k'] = false; // consume key
+                    if (up) this.triggerMove('KICK_UP');
+                    else if (down) this.triggerMove('KICK_DOWN');
+                    else if (moveForward) this.triggerMove('KICK_FORWARD');
+                    else this.triggerMove('KICK_NEUTRAL');
+                }
+            }
+
+            updateAI(opponent) {
+                this.aiTimer--;
+                const dist = Math.abs(opponent.x - this.x);
+
+                if (this.aiTimer <= 0) {
+                    this.aiTimer = 20 + Math.floor(Math.random() * 30);
+                    const rand = Math.random();
+
+                    if (dist > 140) {
+                        this.vx = 2.5 * this.facing;
+                    } else if (dist < 60) {
+                        this.vx = -2 * this.facing;
+                    } else {
+                        // Combat decision tree
+                        if (rand < 0.25) this.triggerMove('PUNCH_FORWARD');
+                        else if (rand < 0.5) this.triggerMove('KICK_FORWARD');
+                        else if (rand < 0.7) this.triggerMove('KICK_DOWN');
+                        else if (rand < 0.85) this.triggerMove('PUNCH_UP');
+                        else this.vx = (Math.random() > 0.5 ? 2 : -2) * this.facing;
+                    }
+                }
+            }
+
+            checkHit(target, move) {
+                const hitboxX = this.x + (move.reach * this.facing);
+                const hitboxY = this.y + move.heightOffset;
+                const hitboxRadius = 24;
+
+                // Opponent Hurtbox: 3 segments (Head: -85, Torso: -50, Legs: -15)
+                let targetZoneY = target.y - 50;
+                if (move.zone === 'head') targetZoneY = target.y - 85;
+                if (move.zone === 'legs') targetZoneY = target.y - 15;
+
+                const dx = hitboxX - target.x;
+                const dy = hitboxY - targetZoneY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < hitboxRadius + 28) {
+                    this.hasHitCurrentMove = true;
+                    target.takeHit(move, this.facing);
+                }
+            }
+
+            takeHit(move, attackDirection) {
+                let dmg = move.damage;
+                const isHead = move.zone === 'head';
+                if (isHead) {
+                    dmg *= 1.5;
+                    screenShake = 12;
+                    playSound('crit');
+                } else {
+                    screenShake = 6;
+                    playSound('hit');
+                }
+
+                this.hp = Math.max(0, this.hp - dmg);
+                this.state = 'HITSTUN';
+                this.currentMove = null;
+                this.frameCounter = 0;
+                this.vx = attackDirection * (isHead ? 6.5 : 4);
+
+                // Spawn sparks
+                for (let i = 0; i < 16; i++) {
+                    particles.push(new Particle(this.x, this.y + move.heightOffset, isHead ? '#ff3838' : '#ff9f1a'));
+                }
+
+                // Update HUD
+                const hudId = this.isAI ? 'p2-hp' : 'p1-hp';
+                document.getElementById(hudId).style.width = `${(this.hp / this.maxHp) * 100}%`;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.facing, 1);
+
+                // Silhouette glow effect
+                ctx.shadowColor = this.glow;
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = '#060608';
+                ctx.strokeStyle = '#060608';
+                ctx.lineWidth = 9;
+                ctx.lineCap = 'round';
+
+                let legAnim = 0;
+                let armAnim = 0;
+                let headY = -90;
+                let torsoLean = 0;
+
+                if (this.state === 'ATTACKING') {
+                    const progress = this.frameCounter / this.currentMove.duration;
+                    armAnim = Math.sin(progress * Math.PI) * 45;
+                    if (this.currentMove.zone === 'head') armAnim += 20;
+                    if (this.currentMove.name.includes('Kick')) legAnim = Math.sin(progress * Math.PI) * 55;
+                } else if (this.state === 'HITSTUN') {
+                    torsoLean = -12;
+                    headY = -85;
+                }
+
+                // Draw Head
+                ctx.beginPath();
+                ctx.arc(torsoLean, headY, 14, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw Torso
+                ctx.beginPath();
+                ctx.moveTo(torsoLean, headY + 12);
+                ctx.lineTo(0, -35);
+                ctx.stroke();
+
+                // Back Leg
+                ctx.beginPath();
+                ctx.moveTo(0, -35);
+                ctx.lineTo(-14 - legAnim * 0.4, -18);
+                ctx.lineTo(-20 - legAnim * 0.5, 0);
+                ctx.stroke();
+
+                // Front Leg / Attack Leg
+                ctx.beginPath();
+                ctx.moveTo(0, -35);
+                ctx.lineTo(12 + legAnim * 0.8, -18 - legAnim * 0.4);
+                ctx.lineTo(16 + legAnim * 1.2, 0 - legAnim * 0.8);
+                ctx.stroke();
+
+                // Back Arm
+                ctx.beginPath();
+                ctx.moveTo(torsoLean, headY + 22);
+                ctx.lineTo(-15, -60);
+                ctx.lineTo(-24, -45);
+                ctx.stroke();
+
+                // Front Arm / Weapon Extension
+                ctx.beginPath();
+                ctx.moveTo(torsoLean, headY + 22);
+                ctx.lineTo(15 + armAnim * 0.6, -65 - armAnim * 0.3);
+                ctx.lineTo(30 + armAnim * 1.1, -55 - armAnim * 0.6);
+                ctx.stroke();
+
+                // Katana / Dual Blades (Signature SF2 weapon)
+                ctx.strokeStyle = '#111';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(30 + armAnim * 1.1, -55 - armAnim * 0.6);
+                ctx.lineTo(75 + armAnim * 1.4, -65 - armAnim * 0.9);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        // --- PARTICLE EFFECT CLASS ---
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8 - 2;
+                this.life = 1.0;
+                this.decay = 0.04 + Math.random() * 0.04;
+                this.size = 2 + Math.random() * 3;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= this.decay;
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = this.color;
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 6;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // --- INITIALIZE FIGHTERS ---
+        const player = new Fighter(240, 'rgba(230, 126, 34, 0.4)', false);
+        const enemy = new Fighter(660, 'rgba(231, 76, 60, 0.4)', true);
+
+        // --- BACKGROUND PARALLAX RENDERER ---
+        function drawAtmosphericBackground() {
+            // Sunset Gradient
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#d35400');
+            grad.addColorStop(0.35, '#962d00');
+            grad.addColorStop(0.75, '#4a1204');
+            grad.addColorStop(1, '#1b0502');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Big Blood Sun / Moon
+            ctx.fillStyle = 'rgba(255, 230, 200, 0.15)';
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, 170, 110, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Distant Mountains
+            ctx.fillStyle = '#210804';
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y);
+            ctx.lineTo(80, 260);
+            ctx.lineTo(240, 340);
+            ctx.lineTo(460, 220);
+            ctx.lineTo(700, 330);
+            ctx.lineTo(900, 240);
+            ctx.lineTo(900, GROUND_Y);
+            ctx.closePath();
+            ctx.fill();
+
+            // Temple / Bamboo Silhouettes
+            ctx.fillStyle = '#100302';
+            for (let i = 0; i < 9; i++) {
+                const x = i * 110 + 20;
+                ctx.fillRect(x, 150, 4, GROUND_Y - 150);
+            }
+
+            // Dojo Ground Plane
+            ctx.fillStyle = '#0a0302';
+            ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
+
+            // Red Ground Boundary Border
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y);
+            ctx.lineTo(canvas.width, GROUND_Y);
+            ctx.stroke();
+        }
+
+        // --- MAIN GAME LOOP ---
+        function mainLoop() {
+            // Screen Shake Handler
+            ctx.save();
+            if (screenShake > 0) {
+                const offsetX = (Math.random() - 0.5) * screenShake;
+                const offsetY = (Math.random() - 0.5) * screenShake;
+                ctx.translate(offsetX, offsetY);
+                screenShake *= 0.85;
+                if (screenShake < 0.5) screenShake = 0;
+            }
+
+            // Draw Scene
+            drawAtmosphericBackground();
+
+            // Update & Draw Entities
+            player.update(enemy);
+            enemy.update(player);
+
+            player.draw(ctx);
+            enemy.draw(ctx);
+
+            // Particle Updates
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw(ctx);
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+
+            ctx.restore();
+            requestAnimationFrame(mainLoop);
+        }
+
+        // Start Engine
+        mainLoop();
+    </script>
+</body>
+
+</html>
